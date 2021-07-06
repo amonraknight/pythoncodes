@@ -6,9 +6,16 @@ import pandas as pd
 
 log_1='Reading from file {}. File_extension is {}'
 
+def get_all_sheet_names_in_excel(file_path):
+	sheet_list=[]
+	df = pd.read_excel(file_path, sheet_name=None)
+	for eachsheet in df.keys():
+		sheet_list.append(eachsheet)
+	return sheet_list
+
 def read_file_into_dataframe_default(file_path):
 	file_extension=os.path.splitext(file_path)[-1]
-	print(log_1.format(file_path, file_extension))
+	#print(log_1.format(file_path, file_extension))
 	if file_extension in ['.csv']:
 		return read_csv_into_dataframe(file_path, 0, 0, 0)
 	elif file_extension in ['.xls', '.xlsx']:
