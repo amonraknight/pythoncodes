@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 #Generate an xls/xlsx according to the definition file.
 #command sample: python dashboard_generator.py "E:\testfield\python\pandasapy\testdata\dashboard_definition.xlsx" "E:\testfield\python\pandasapy\testoutput\dashboardresult.xlsx"
+#command sample: python dashboard_generator.py "testdata\dashboard_definition.xlsx" "testoutput\dashboardresult.xlsx"
 
 import sys
 import re
@@ -8,6 +9,7 @@ import definition_reader
 import table_reader as table_reader
 import pandassql_query_executer as query_executer
 import dataframe_operator as df_operator
+import table_writer as df_writer
 
 log_incorrect_arguments='Please enter 2 parameters, one is the dashboard definition excel, another is the output path.'
 log_input_parameter1='The definition file is "{}".'
@@ -26,6 +28,9 @@ txt_data_cards='data cards'
 txt_display_cards='display cards'
 txt_data_card='data card'
 txt_header_setting='header setting'
+txt_top='top'
+txt_left='left'
+txt_up_distance='up distance'
 
 format_header_setting='column:([a-zA-Z0-9_]+) as ([a-zA-Z0-9_ ]+)'
 
@@ -52,6 +57,9 @@ def main_process(argv):
 
 def print_data_frames_according(output_path, dataframes, display_cards):
 	
+	#the last row of each sheet
+	cursor_row_eachsheet={}
+	
 	for card_no, each_display_setting in display_cards.items():
 		corresponding_df=dataframes[each_display_setting[txt_data_card]]
 		
@@ -65,13 +73,28 @@ def print_data_frames_according(output_path, dataframes, display_cards):
 				source_target_name_couple=re.findall(format_header_setting, each_header)[0]
 				wanted_columns.append(source_target_name_couple[0])
 				rename_settings[source_target_name_couple[0]]=source_target_name_couple[1]
-	
-			#print(wanted_columns)
-			#print(rename_settings)
-			#print(corresponding_df)
+			
 			corresponding_df=df_operator.acquire_wanted_columns_from_dataframe(corresponding_df, wanted_columns, rename_settings)
-			print(corresponding_df)
-
+			#print(corresponding_df)
+			
+		#print data frame()
+		
+		#calculate the row number
+		current_row_cursor=0
+		if each_display_setting[txt_sheet] in cursor_row_eachsheet:
+			current_row_cursor=cursor_row_eachsheet[each_display_setting[txt_sheet]]
+			current_row_cursor=current_row_cursor+each_display_setting[txt_up_distance]
+		else:
+			current_row_cursor=each_display_setting[txt_top]
+		
+		
+		#df_writer.add_to_excel(corresponding_df, output_path, each_display_setting[txt_sheet], current_row_cursor, each_display_setting[txt_left])
+		df_writer.append_to_excel(corresponding_df, output_path, each_display_setting[txt_sheet], current_row_cursor, each_display_setting[txt_left])
+		
+		current_row_cursor=current_row_cursor+corresponding_df.shape[0]+1
+		cursor_row_eachsheet[each_display_setting[txt_sheet]]=current_row_cursor
+	
+	print(cursor_row_eachsheet)
 
 #input is the data cards definition	
 def get_dataframes_from_definition(data_cards):

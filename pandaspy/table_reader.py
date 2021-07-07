@@ -1,5 +1,6 @@
-#Provides methods to read data from CSV, xls, xlsx into a pandas dataframe.
 # -*- coding: utf-8 -*-  
+#Provides methods to read data from CSV, xls, xlsx into a pandas dataframe.
+
 
 import os
 import pandas as pd
