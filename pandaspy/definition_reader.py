@@ -24,6 +24,7 @@ txt_type='type'
 txt_sql_query='sql query'
 txt_source_no='source no'
 txt_file_path='file path'
+txt_other_card='other card'
 txt_sheet='sheet'
 txt_start_row='start row'
 txt_table_name='table name'
@@ -65,8 +66,6 @@ def get_config(definition_file_path):
 		output[txt_message]='Cannot find a "data_cards" sheet.'
 		return output
 	
-	
-	
 	return output
 
 #Now it is not permited to put 2 display cards into the same row. 
@@ -74,6 +73,7 @@ def convert_display_cards_into_json(sheet_name,input_dataframe):
 	display_cards_json={}
 	previous_row=0
 	for i,eachrow in input_dataframe.iterrows():
+		previous_row_of_i=previous_row
 		for j, eachcell in eachrow.iteritems():
 			if pd.notnull(eachcell) and re.match(format_display_card, eachcell):
 				#print(eachcell)
@@ -93,9 +93,11 @@ def convert_display_cards_into_json(sheet_name,input_dataframe):
 				header_setting=extract_header_setting(i,j,input_dataframe)
 				if len(header_setting)>0:
 					each_display_card_definition[txt_header_setting]=header_setting
-					previous_row=i+1
+					previous_row_of_i=i+1
 				
 				display_cards_json[display_card_number]=each_display_card_definition
+		
+		previous_row=previous_row_of_i
 	
 	return display_cards_json
 
@@ -181,6 +183,8 @@ def collect_a_source_info(start_row, input_dataframe, max_row_number):
 				source_dict[txt_start_row]=input_dataframe.iloc[current_rownumber, 3]
 			elif source_attr_cell_value.lower()==txt_table_name:
 				source_dict[txt_table_name]=input_dataframe.iloc[current_rownumber, 3]
+			elif source_attr_cell_value.lower()==txt_other_card:
+				source_dict[txt_other_card]=input_dataframe.iloc[current_rownumber, 3]
 			
 		current_rownumber=current_rownumber+1
 		if current_rownumber>=max_row_number:
