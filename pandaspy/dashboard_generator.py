@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*- 
 #Generate an xls/xlsx according to the definition file.
-#command sample: python dashboard_generator.py "E:\testfield\python\pandasapy\testdata\dashboard_definition.xlsx" "E:\testfield\python\pandasapy\testoutput\dashboardresult.xlsx"
 #command sample: python dashboard_generator.py "testdata\dashboard_definition.xlsx" "testoutput\dashboardresult.xlsx"
 
 import sys
@@ -14,6 +13,8 @@ import table_writer as df_writer
 log_incorrect_arguments='Please enter 2 parameters, one is the dashboard definition excel, another is the output path.'
 log_input_parameter1='The definition file is "{}".'
 log_input_parameter2='The destination file is "{}".'
+log_read_rows_from_source='Read {} rows from source {}.'
+log_data_card_source_type='The type of current source type is {}.'
 
 txt_type='type'
 txt_compound='compound query'
@@ -32,6 +33,10 @@ txt_header_setting='header setting'
 txt_top='top'
 txt_left='left'
 txt_up_distance='up distance'
+txt_skip_footer='skip footer'
+txt_direct='direct'
+txt_header='header'
+txt_has_header='has header'
 
 
 format_header_setting='column:([a-zA-Z0-9_]+) as ([a-zA-Z0-9_ ]+)'
@@ -48,7 +53,7 @@ def main_process(argv):
 	
 	#get definitions
 	dashboard_definition=definition_reader.get_config(argv[0])
-	print(dashboard_definition)
+	#print(dashboard_definition)
 	
 	#prepare the dataframes
 	dataframes=get_dataframes_from_definition(dashboard_definition[txt_data_cards])
@@ -77,6 +82,7 @@ def print_data_frames_according(output_path, dataframes, display_cards):
 			wanted_columns=[]
 			rename_settings={}
 			for each_header in header_setting_list:
+				#print(each_header)
 				source_target_name_couple=re.findall(format_header_setting, each_header)[0]
 				wanted_columns.append(source_target_name_couple[0])
 				rename_settings[source_target_name_couple[0]]=source_target_name_couple[1]
@@ -97,22 +103,26 @@ def print_data_frames_according(output_path, dataframes, display_cards):
 		else:
 			current_row_cursor=each_display_setting[txt_top]
 		
-		#df_writer.add_to_excel(corresponding_df, output_path, each_display_setting[txt_sheet], current_row_cursor, each_display_setting[txt_left])
-		df_writer.append_to_excel(corresponding_df, output_path, each_display_setting[txt_sheet], current_row_cursor, each_display_setting[txt_left])
-		
-		previous_sheet=each_display_setting[txt_sheet]
-		previous_design_top=each_display_setting[txt_top]
+		df_writer.append_to_excel(corresponding_df, output_path, each_display_setting[txt_sheet], current_row_cursor, each_display_setting[txt_left], header=each_display_setting[txt_has_header])
 		previous_real_top=current_row_cursor
-		if corresponding_df.shape[0]>previous_rownum:
-			previous_rownum=corresponding_df.shape[0]
-		
 		if each_display_setting[txt_sheet]==previous_sheet and each_display_setting[txt_top]==previous_design_top:
 			current_row_cursor=current_row_cursor+previous_rownum
 		else:
 			current_row_cursor=current_row_cursor+corresponding_df.shape[0]
+		if not each_display_setting[txt_has_header]:
+			current_row_cursor=current_row_cursor-1
+		
+		if corresponding_df.shape[0]>previous_rownum:
+			previous_rownum=corresponding_df.shape[0]
+		
+		previous_sheet=each_display_setting[txt_sheet]
+		previous_design_top=each_display_setting[txt_top]
+		
+		
 		cursor_row_eachsheet[each_display_setting[txt_sheet]]=current_row_cursor
+		#print(cursor_row_eachsheet)
 	
-	print(cursor_row_eachsheet)
+	#print(cursor_row_eachsheet)
 
 #input is the data cards definition	
 def get_dataframes_from_definition(data_cards):
@@ -122,9 +132,11 @@ def get_dataframes_from_definition(data_cards):
 		#dealing with all data card types
 		if card_def[txt_type]==txt_compound:
 			dataframes[card_no]=get_compound_df(dataframes, card_def)
+		elif card_def[txt_type]==txt_direct:
+			dataframes[card_no]=get_direct_df(dataframes, card_def)
 		#There can be other types more 
 		
-		print(dataframes[card_no])
+		#print(dataframes[card_no])
 	
 	return dataframes
 
@@ -136,15 +148,37 @@ def get_compound_df(existing_dataframes, card_def):
 		each_df={}
 		#if a file path is given
 		if txt_file_path in each_source:
+			print(log_data_card_source_type.format('a file'))
 			each_df=table_reader.read_excel_into_dataframe(each_source[txt_file_path], 0, each_source[txt_sheet], each_source[txt_start_row], 0)
 		elif txt_other_card in each_source:
+			print(log_data_card_source_type.format('other card'))
 			existing_card_no=re.findall(format_data_card, each_source[txt_other_card])[0]
 			each_df=existing_dataframes[existing_card_no]
+		#print(each_df)
+		print(log_read_rows_from_source.format(each_df.shape[0], each_source[txt_source_no]))
 		dataframe_map[each_source[txt_table_name]]=each_df
 	
 	result_df=query_executer.execute_query_upon_dataframes(sql_query, dataframe_map);
 	
 	return result_df;
+
+def get_direct_df(existing_dataframes, card_def):
+	direct_source=card_def[txt_sources][0]
+	#if a file path is given
+	each_df={}
+	if txt_file_path in direct_source:
+		print(log_data_card_source_type.format('a file'))
+		header=0
+		if txt_header in direct_source:
+			header=direct_source[txt_header]
+		each_df=table_reader.read_excel_into_dataframe(direct_source[txt_file_path], header, direct_source[txt_sheet], direct_source[txt_start_row], direct_source[txt_skip_footer])
+	elif txt_other_card in direct_source:
+		print(log_data_card_source_type.format('other card'))
+		existing_card_no=re.findall(format_data_card, direct_source[txt_other_card])[0]
+		each_df=existing_dataframes[existing_card_no]
+	#print(each_df)
+	print(log_read_rows_form_source.format(each_df.shape[0], direct_source[txt_source_no]))
+	return each_df
 
 if __name__=="__main__":
 	main_process(sys.argv[1:])

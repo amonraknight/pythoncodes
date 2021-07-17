@@ -13,7 +13,7 @@ import dataframe_operator as df_operator
 format_data_card='data card ([0-9]+)'
 format_source='source ([0-9]+)'
 
-format_display_card='display card ([0-9]+) based on data card ([0-9]+)'
+format_display_card='display card ([0-9]+) based on data card ([0-9]+)(, no headers)?'
 format_display_direct_column='column *: *([a-zA-Z0-9_]+) *as *([a-zA-Z0-9_]+) *'
 
 log_definition_dataframe_length='There are {} rows of data cards definitions found.'
@@ -38,6 +38,9 @@ txt_left='left'
 txt_up_distance='up distance'
 txt_header_setting='header setting'
 txt_last_row='last row'
+txt_skip_footer='skip footer'
+txt_header='header'
+txt_has_header='has header'
 
 def get_config(definition_file_path):
 	output={}
@@ -77,27 +80,33 @@ def convert_display_cards_into_json(sheet_name,input_dataframe):
 		for j, eachcell in eachrow.iteritems():
 			if pd.notnull(eachcell) and re.match(format_display_card, eachcell):
 				#print(eachcell)
-				#print(re.findall(format_display_card, eachcell))
 				#use an empty card dict
 				each_display_card_definition={}
+				#print(re.findall(format_display_card, eachcell)[0])
+				#print(type(re.findall(format_display_card, eachcell)[0]))
 				display_card_number=re.findall(format_display_card, eachcell)[0][0]
 				data_card_number=re.findall(format_display_card, eachcell)[0][1]
+				
+				if len(re.findall(format_display_card, eachcell)[0][2])>1:
+					each_display_card_definition[txt_has_header]=False
+				else:
+					each_display_card_definition[txt_has_header]=True
+				
 				each_display_card_definition[txt_card_number]=display_card_number
 				each_display_card_definition[txt_data_card]=data_card_number
 				each_display_card_definition[txt_sheet]=sheet_name
 				each_display_card_definition[txt_top]=i
 				each_display_card_definition[txt_left]=j
-				each_display_card_definition[txt_up_distance]=i-previous_row
+				each_display_card_definition[txt_up_distance]=i-previous_row_of_i
 				
 				#extract the display settings here.
 				header_setting=extract_header_setting(i,j,input_dataframe)
+				previous_row=i
 				if len(header_setting)>0:
 					each_display_card_definition[txt_header_setting]=header_setting
-					previous_row_of_i=i+1
+					previous_row=previous_row+1
 				
 				display_cards_json[display_card_number]=each_display_card_definition
-		
-		previous_row=previous_row_of_i
 	
 	return display_cards_json
 
@@ -111,7 +120,13 @@ def extract_header_setting(top, left,input_dataframe):
 		current_row=input_dataframe.loc[current_rownum, left:]
 		if current_row.notnull().any():
 			content_in_list=df_operator.cast_row_into_list(current_row, True)
-			if content_in_list and len(header_setting)==0:
+			#only allow column setting for now
+			is_column_setting=True
+			for each_setting_str in content_in_list:
+				if not re.match(format_display_direct_column, each_setting_str):
+					is_column_setting=False
+					break
+			if is_column_setting and content_in_list and len(header_setting)==0:
 				header_setting=content_in_list
 	
 	return header_setting
@@ -185,6 +200,15 @@ def collect_a_source_info(start_row, input_dataframe, max_row_number):
 				source_dict[txt_table_name]=input_dataframe.iloc[current_rownumber, 3]
 			elif source_attr_cell_value.lower()==txt_other_card:
 				source_dict[txt_other_card]=input_dataframe.iloc[current_rownumber, 3]
+			elif source_attr_cell_value.lower()==txt_skip_footer:
+				source_dict[txt_skip_footer]=input_dataframe.iloc[current_rownumber, 3]
+			elif source_attr_cell_value.lower()==txt_header:
+				source_dict[txt_header]=input_dataframe.iloc[current_rownumber, 3]
+				if source_dict[txt_header].lower()=='none':
+					source_dict[txt_header]=None
+			
+			if txt_skip_footer not in source_dict:
+				source_dict[txt_skip_footer]=0
 			
 		current_rownumber=current_rownumber+1
 		if current_rownumber>=max_row_number:
@@ -192,6 +216,6 @@ def collect_a_source_info(start_row, input_dataframe, max_row_number):
 	
 	source_dict[txt_current_source_end_row]=current_rownumber
 	return source_dict
-		
+
 	
 	

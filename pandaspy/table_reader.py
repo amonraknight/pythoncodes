@@ -22,20 +22,12 @@ def read_file_into_dataframe_default(file_path):
 	elif file_extension in ['.xls', '.xlsx']:
 		return read_excel_into_dataframe(file_path,0, 0, 0, 0)
 
-def read_csv_into_dataframe(file_path, has_header, startFromRow, footerRowNum):
-	#print('read_csv_into_dataframe is called.')
-	headRowsToSkip=None
-	if startFromRow>=1:
-		headRowsToSkip=lambda x: x in [0, startFromRow-1]
-	
-	df=pd.read_csv(file_path, header=has_header, index_col=None, skiprows=headRowsToSkip, skipfooter=footerRowNum);
+def read_csv_into_dataframe(file_path, has_header, startFromRow, footerRowNum, **kwargs):
+	#print('read_csv_into_dataframe is called.')	
+	df=pd.read_csv(file_path, header=has_header, index_col=None, skiprows=startFromRow, skipfooter=footerRowNum, **kwargs);
 	return df
 	
-def read_excel_into_dataframe(file_path, has_header, sheet, startFromRow, footerRowNum):
+def read_excel_into_dataframe(file_path, has_header, sheet, startFromRow, footerRowNum, **kwargs):
 	#print('read_excel_into_dataframe is called.')
-	headRowsToSkip=None
-	if startFromRow>=1:
-		headRowsToSkip=lambda x: x in [0, startFromRow-1]
-	
-	df=pd.read_excel(file_path, sheet_name=sheet, header=has_header, index_col=None, skiprows=headRowsToSkip, skipfooter=footerRowNum);
+	df=pd.read_excel(file_path, sheet_name=sheet, header=has_header, index_col=None, skiprows=startFromRow, skipfooter=footerRowNum, **kwargs);
 	return df
