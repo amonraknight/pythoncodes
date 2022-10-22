@@ -10,7 +10,7 @@ import displayer
 class Environment:
 
     def __init__(self):
-        self.env = gym.make(config.ENV)
+        self.env = gym.make(config.ENV, render_mode="rgb_array")
         self.num_states = self.env.observation_space.shape[0]
 
         self.num_actions = self.env.action_space.n
@@ -18,6 +18,7 @@ class Environment:
         self.agent = Agent(self.num_states, self.num_actions)
 
     def run(self):
+
         # Keep the last 10 steps:
         episode_10_list = np.zeros(10)
         complete_episodes = 0
@@ -37,7 +38,6 @@ class Environment:
             # Take steps:
             for step in range(config.MAX_STEPS):
                 if episode_final is True:
-                    # frames.append(self.env.render(mode='rgb_array'))
                     frames.append(self.env.render())
 
                 action = self.agent.get_action(state, episode)
@@ -50,7 +50,7 @@ class Environment:
                     # Add the last to the 10 most recent list.
                     episode_10_list = np.hstack((episode_10_list[1:], step + 1))
 
-                    if step < 195:
+                    if step < config.MAX_STEPS-5:
                         # Reward is -1 when the stick is down before 200 steps.
                         reward = torch.FloatTensor([-1.0])
                         complete_episodes = 0
@@ -81,6 +81,6 @@ class Environment:
                 displayer.display_frames_as_gif(frames)
                 break
 
-            if complete_episodes >= 10:
+            if complete_episodes >= 2:
                 print('10 successful episodes.')
                 episode_final = True

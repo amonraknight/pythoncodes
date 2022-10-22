@@ -2,5 +2,6 @@
 
 #Pre-requisites:
 pip install gym
+pip install gym[classic_control]
 pip install JSAnimation
 pip install IPython

@@ -13,4 +13,5 @@ class Agent:
         return action
 
     def memorize(self, state, action, state_next, reward):
-        self.brain.memory.push(state, action, state_next, reward)
+        # self.brain.memory.push(state, action, state_next, reward)
+        self.brain.push(state, action, state_next, reward)
