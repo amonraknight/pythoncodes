@@ -1,0 +1,6 @@
+#This is the example given on 《边做边学深度强化学习：PyTorch程序设计实践》
+
+#Pre-requisites:
+pip install gym
+pip install JSAnimation
+pip install IPython
