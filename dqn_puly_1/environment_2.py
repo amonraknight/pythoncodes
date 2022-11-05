@@ -10,7 +10,7 @@ import displayer
 class Environment:
 
     def __init__(self):
-        self.env = gym.make(config.ENV, render_mode="rgb_array")
+        self.env = gym.make(config.ENV, render_mode="human")
         num_states = self.env.observation_space.shape[0]
         num_actions = self.env.action_space.n
 
@@ -21,8 +21,6 @@ class Environment:
         # Keep the last 10 steps:
         episode_10_list = np.zeros(10)
         complete_episodes = 0
-        episode_final = False
-        frames = []
 
         # Each episode:
         for episode in range(config.NUM_EPISODES):
@@ -36,8 +34,6 @@ class Environment:
 
             # Take steps:
             for step in range(config.MAX_STEPS):
-                if episode_final is True:
-                    frames.append(self.env.render())
 
                 action = self.agent.get_action(state, episode)
 
@@ -52,11 +48,10 @@ class Environment:
                     if step < config.MAX_STEPS - 5:
                         # Reward is -1 when the stick is down before 200 steps.
                         reward = torch.FloatTensor([-1.0])
-                        complete_episodes = 0
+
                     else:
                         # Reward is +1 when
                         reward = torch.FloatTensor([1.0])
-                        complete_episodes = complete_episodes + 1
 
                 else:
                     # Reward is 0 if the stick is not down in step limit.
@@ -73,15 +68,16 @@ class Environment:
                 if done:
                     print('%d Episode: Finished after %d steps: average steps = %.1lf' % (
                         episode, step + 1, episode_10_list.mean()))
+                    complete_episodes = 0
+
                     if episode % 2 == 0:
                         self.agent.update_target_q_function()
                     break
 
-            if episode_final is True:
-                # Save the animation
-                displayer.display_frames_as_gif(frames)
-                break
+                if step == config.MAX_STEPS - 1:
+                    print('%d Episode: pole stands after %d steps.' % (episode, step))
+                    complete_episodes = complete_episodes + 1
 
-            if complete_episodes >= 2:
-                print('10 successful episodes.')
-                episode_final = True
+            if complete_episodes >= config.ACCEPT_THRESHOLD:
+                print('{} successful episodes.'.format(config.ACCEPT_THRESHOLD))
+                break
