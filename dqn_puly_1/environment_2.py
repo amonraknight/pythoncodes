@@ -4,7 +4,6 @@ import torch
 
 import config
 from agent_2 import Agent
-import displayer
 
 
 class Environment:
@@ -61,14 +60,16 @@ class Environment:
                     state_next = torch.from_numpy(state_next).type(torch.FloatTensor)
                     state_next = torch.unsqueeze(state_next, 0)
 
-                self.agent.memorize(state, action, state_next, reward)
-                self.agent.update_q_function()
+                # Memorize a 0 as TD_error
+                self.agent.memorize(state, action, state_next, reward, 0)
+                self.agent.update_q_function(episode)
                 state = state_next
 
                 if done:
                     print('%d Episode: Finished after %d steps: average steps = %.1lf' % (
                         episode, step + 1, episode_10_list.mean()))
                     complete_episodes = 0
+                    self.agent.update_td_error_memory()
 
                     if episode % 2 == 0:
                         self.agent.update_target_q_function()

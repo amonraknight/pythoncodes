@@ -6,7 +6,7 @@ from transaction import Transition
 import numpy as np
 
 import config
-from memoryreplayer import ReplayMemory
+from memoryreplayer2 import ReplayMemory
 from dueling_net import Net
 
 
@@ -31,7 +31,7 @@ class Brain:
         print(self.main_q_network)
         self.optimizer = optim.Adam(self.main_q_network.parameters(), lr=config.LEARNING_RATE)
 
-    def push(self, state, action, state_next, reward):
+    def push(self, state, action, state_next, reward, td_error):
         '''
         state = state.to(device=self.device)
         action = action.to(device=self.device)
@@ -40,14 +40,14 @@ class Brain:
         reward = reward.to(device=self.device)
         '''
 
-        self.memory.push(state, action, state_next, reward)
+        self.memory.push(state, action, state_next, reward, td_error)
 
-    def replay(self):
+    def replay(self, episode):
         if len(self.memory) < config.BATCH_SIZE:
             return
 
         self.batch, self.state_batch, self.action_batch, self.reward_batch, self.non_final_next_states = \
-            self.make_minibatch()
+            self.make_minibatch(episode)
         self.expected_state_action_values = self.get_expected_state_action_values()
         self.update_main_q_network()
 
@@ -64,8 +64,13 @@ class Brain:
 
         return action
 
-    def make_minibatch(self):
-        transactions = self.memory.sample(config.BATCH_SIZE)
+    def make_minibatch(self, episode):
+
+        if episode < 30:
+            transactions = self.memory.sample(config.BATCH_SIZE)
+        else:
+            transactions = self.memory.get_prioritized_sample(config.BATCH_SIZE)
+
         batch = Transition(*zip(*transactions))
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
@@ -105,3 +110,38 @@ class Brain:
 
     def update_target_q_network(self):
         self.target_q_network.load_state_dict(self.main_q_network.state_dict())
+
+    def update_td_error_memory(self):
+        # Evaluation mode:
+        self.main_q_network.eval()
+        self.target_q_network.eval()
+
+        # Take all the memory items:
+        transactions = self.memory.memory
+        batch = Transition(*zip(*transactions))
+
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
+        non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+
+        # Get Q(s_t, a_t)
+        state_action_values = self.main_q_network(state_batch).gather(1, action_batch)
+
+        # Mask index
+        non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None, batch.next_state)))
+
+        next_state_values = torch.zeros(self.memory.__len__())
+        a_m = torch.zeros(self.memory.__len__()).type(torch.LongTensor)
+        a_m[non_final_mask] = self.main_q_network(non_final_next_states).detach().max(1)[1]
+        a_m_non_final_next_states = a_m[non_final_mask].view(-1, 1)
+        next_state_values[non_final_mask] = \
+            self.target_q_network(non_final_next_states).gather(1, a_m_non_final_next_states).detach().squeeze()
+
+        td_errors = (reward_batch + config.GAMMA * next_state_values) - state_action_values.squeeze()
+        self.memory.update_td_errors(td_errors)
+
+
+
+
+
