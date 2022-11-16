@@ -6,9 +6,10 @@ import torch.nn.functional as F
 import os
 
 import config
-from agent.memoryreplayer import ReplayMemory
 from agent.dueling_net import CNNNet
 from common.transaciton import Transition
+from agent.memoryreplayer import ReplayMemory
+from agent.memoryreplayer2 import Buffer
 
 
 class Brain:
@@ -18,7 +19,10 @@ class Brain:
         print(f"Training on device {self.device}.")
 
         self.num_actions = num_actions
-        self.memory = ReplayMemory(config.CAPACITY)
+
+        # self.memory = ReplayMemory(config.CAPACITY)
+        self.buffer = Buffer(num_states, 'priority', config.CAPACITY)
+
         n_in, n_mid_1, n_mid_2, n_out = int(
             np.sqrt(num_states)), config.MIDDLE_LAYER_1_SIZE, config.MIDDLE_LAYER_2_SIZE, num_actions
         self.main_q_network = CNNNet(n_in, n_out)
@@ -38,6 +42,8 @@ class Brain:
         self.batch = None
         self.next_states = None
         self.reward_batch = None
+        self.tree_idx = None
+        self.ISWeights = None
 
     # All of them should be Tensors
     def push(self, state, action, state_next, reward):
@@ -45,12 +51,20 @@ class Brain:
         action = action.to(device=self.device)
         state_next = state_next.to(device=self.device)
         reward = reward.to(device=self.device)
-        self.memory.push(state, action, state_next, reward)
+
+        # self.memory.push(state, action, state_next, reward)
+        self.buffer.store(state, action, state_next, reward)
 
     def replay(self):
-        if len(self.memory) < config.BATCH_SIZE:
+
+        # if len(self.memory) < config.BATCH_SIZE:
+        # Don't learn if the buffer is not full
+        if self.buffer.memory_counter < config.CAPACITY:
             return
-        self.batch, self.state_batch, self.action_batch, self.reward_batch, self.next_states = self.make_minibatch()
+
+        self.batch, self.state_batch, self.action_batch, self.reward_batch, self.next_states, \
+        self.tree_idx, self.ISWeights = self.make_minibatch()
+
         self.expected_state_action_values = self.get_expected_state_action_values()
         self.update_main_q_network()
 
@@ -81,20 +95,29 @@ class Brain:
         return action
 
     def make_minibatch(self):
-        transactions = self.memory.sample(config.BATCH_SIZE)
+        # transactions = self.memory.sample(config.BATCH_SIZE)
+        transactions, (tree_idx, ISWeights) = self.buffer.sample(config.BATCH_SIZE)
+
         batch = Transition(*zip(*transactions))
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
         next_states = torch.cat(batch.next_state)
 
-        return batch, state_batch, action_batch, reward_batch, next_states
+        return batch, state_batch, action_batch, reward_batch, next_states, tree_idx, ISWeights
 
     def update_main_q_network(self):
         # Train mode:
         self.main_q_network.train()
 
-        loss = F.mse_loss(self.state_action_values, self.expected_state_action_values)
+        # loss = F.mse_loss(self.state_action_values, self.expected_state_action_values)
+        # Need to convert to ndarrays here:
+        abs_errors = (self.expected_state_action_values - self.state_action_values).abs()
+        abs_errors = abs_errors.cpu().detach().numpy()
+
+        self.buffer.update(self.tree_idx, abs_errors)
+        loss = (torch.FloatTensor(self.ISWeights).to(device=self.device) * (self.expected_state_action_values
+                                                                            - self.state_action_values).pow(2)).mean()
 
         self.optimizer.zero_grad()
         loss.backward()

@@ -76,7 +76,10 @@ class Game2048NoDisplay:
                 state_next = torch.unsqueeze(state_next, 0)
 
                 self.agent.memorize(state, action, state_next, reward)
-                self.agent.update_q_function()
+                # Update the neronet after a configured interval.
+                if episode % c.TRAIN_INTERVAL == 0:
+                    self.agent.update_q_function()
+
                 state = state_next
 
                 if status == 'win' or status == 'lose':
