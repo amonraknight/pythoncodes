@@ -2,13 +2,11 @@ import torch
 from torch import optim
 import numpy as np
 import random
-import torch.nn.functional as F
-import os
+
 
 import config
 from agent.dueling_net import CNNNet
 from common.transaciton import Transition
-from agent.memoryreplayer import ReplayMemory
 from agent.memoryreplayer2 import Buffer
 
 
@@ -70,29 +68,33 @@ class Brain:
 
     # The state must be the flattened log2 of the original matrix.
     # Action the direction code in tensor [[]]: 0 up, 1 down, 2 left, 3 right
-    def decide_action(self, state, possible_actions, episode):
-        state = state.to(device=self.device)
-        epsilon = config.INITIAL_EPSILON * (1 - episode / config.NUM_EPISODES)
-        if epsilon <= np.random.uniform(0, 1):
-            self.main_q_network.eval()
-            with torch.no_grad():
-                action = self.main_q_network(state)
-                action = action.view(-1).tolist()
-
-                if config.SKIP_IMPOSSIBLE_ACTION:
-                    for i in range(self.num_actions):
-                        if possible_actions[i] == 0:
-                            action[i] = -1000
-
-                action = action.index(max(action))
-        else:
+    def decide_action(self, state, possible_actions, episode, is_random=False):
+        if is_random:
             action = random.randrange(self.num_actions)
-            if config.SKIP_IMPOSSIBLE_ACTION:
-                while possible_actions[action] == 0:
-                    action = random.randrange(self.num_actions)
+            return torch.LongTensor([[action]])
+        else:
+            state = state.to(device=self.device)
+            epsilon = config.INITIAL_EPSILON * (1 - episode / config.NUM_EPISODES)
+            if epsilon <= np.random.uniform(0, 1):
+                self.main_q_network.eval()
+                with torch.no_grad():
+                    action = self.main_q_network(state)
+                    action = action.view(-1).tolist()
 
-        action = torch.LongTensor([[action]])
-        return action
+                    if config.SKIP_IMPOSSIBLE_ACTION:
+                        for i in range(self.num_actions):
+                            if possible_actions[i] == 0:
+                                action[i] = -1000
+
+                    action = action.index(max(action))
+            else:
+                action = random.randrange(self.num_actions)
+                if config.SKIP_IMPOSSIBLE_ACTION:
+                    while possible_actions[action] == 0:
+                        action = random.randrange(self.num_actions)
+
+            action = torch.LongTensor([[action]])
+            return action
 
     def make_minibatch(self):
         # transactions = self.memory.sample(config.BATCH_SIZE)

@@ -41,7 +41,7 @@ class Game2048NoDisplay:
         self.matrix = logic.new_game(c.GRID_LEN)
         return self.observe()
 
-    def dqn_solve(self):
+    def dqn_train(self):
         print('DQN solution training start...')
         complete_episodes = 0
         starting_episode = 0
@@ -52,7 +52,7 @@ class Game2048NoDisplay:
             starting_episode = previous_episode + 1
 
         # Each episode:
-        for episode in range(starting_episode, c.NUM_EPISODES):
+        for episode in range(starting_episode, c.NUM_EPISODES+1):
             # Reset the game:
             cells, status, action_l = self.reset()
 
@@ -61,14 +61,17 @@ class Game2048NoDisplay:
             state = torch.unsqueeze(state, 0)
 
             step = 0
+            invalid_step_count = c.INVALID_STEP_TOLERATE
             while status == 'not over':
-                action = self.agent.get_action(state, action_l, episode)
+                action = self.agent.get_action(state, action_l, episode, is_random=invalid_step_count <= 0)
 
                 if action_l[action] == 1:
                     # Commit the step: tensor.item converts the tensor with a single item to a single value.
                     state_next, status, action_l, reward = self.step(action.item())
                     step += 1
+                    invalid_step_count = c.INVALID_STEP_TOLERATE
                 else:
+                    invalid_step_count -= 1
                     state_next = cells
                     reward = torch.FloatTensor([[-0.01]])
 
@@ -121,7 +124,50 @@ class Game2048NoDisplay:
         observation, status, action_l = self.observe()
         return observation, status, action_l, reward
 
+    def dqn_solve(self):
+        print('DQN solution training start...')
+        total_steps = 0
+
+        # Find if there are half-way modules.
+        self.agent.read_latest_module()
+
+        # Each episode:
+        for episode in range(20):
+            # Reset the game:
+            cells, status, action_l = self.reset()
+
+            # Prepare the state in tensor[[]]
+            state = torch.from_numpy(cells).type(torch.FloatTensor)
+            state = torch.unsqueeze(state, 0)
+
+            step = 0
+            invalid_step = False
+            while status == 'not over':
+                action = self.agent.get_action(state, action_l, c.NUM_EPISODES, is_random=invalid_step)
+
+                if action_l[action] == 1:
+                    # Commit the step: tensor.item converts the tensor with a single item to a single value.
+                    state_next, status, action_l, reward = self.step(action.item())
+                    step += 1
+                    invalid_step = False
+                else:
+                    invalid_step = True
+                    state_next = cells
+
+                state_next = torch.from_numpy(state_next).type(torch.FloatTensor)
+                state_next = torch.unsqueeze(state_next, 0)
+
+                state = state_next
+
+                if status == 'win' or status == 'lose':
+                    print('%d Episode: Finished after %d steps in status %s.' % (episode, step, status))
+                    total_steps += step
+                    break
+
+        print('Average steps {}'.format(str(total_steps / 20)))
+
 
 if __name__ == "__main__":
     game = Game2048NoDisplay()
+    # game.dqn_train()
     game.dqn_solve()

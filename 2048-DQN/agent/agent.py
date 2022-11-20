@@ -10,8 +10,8 @@ class Agent:
     def update_q_function(self):
         self.brain.replay()
 
-    def get_action(self, state, possible_actions, episode):
-        action = self.brain.decide_action(state, possible_actions, episode)
+    def get_action(self, state, possible_actions, episode, is_random=False):
+        action = self.brain.decide_action(state, possible_actions, episode, is_random)
         return action
 
     # All parameters should be in tensor.
