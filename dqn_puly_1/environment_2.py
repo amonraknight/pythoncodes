@@ -1,6 +1,7 @@
 import gym
 import numpy as np
 import torch
+import time
 
 import config
 from agent_2 import Agent
@@ -9,7 +10,7 @@ from agent_2 import Agent
 class Environment:
 
     def __init__(self):
-        self.env = gym.make(config.ENV, render_mode="human")
+        self.env = gym.make(config.ENV)
         num_states = self.env.observation_space.shape[0]
         num_actions = self.env.action_space.n
 
@@ -25,8 +26,7 @@ class Environment:
         for episode in range(config.NUM_EPISODES):
             # Reset the game:
             observation = self.env.reset()
-
-            state = observation[0]
+            state = observation
             # Convert the state into a tensor of 1*4.
             state = torch.from_numpy(state).type(torch.FloatTensor)
             state = torch.unsqueeze(state, 0)
@@ -36,7 +36,10 @@ class Environment:
 
                 action = self.agent.get_action(state, episode)
 
-                observation_next, _, done, _, _ = self.env.step(action.item())
+                observation_next, _, done, _ = self.env.step(action.item())
+
+                self.env.render()
+                time.sleep(1 / 30)  # FPS
 
                 # If the stick is down within the step limit, done is True.
                 if done:
