@@ -88,6 +88,7 @@ class Brain:
         next_state_values = torch.zeros(config.BATCH_SIZE)
         a_m = torch.zeros(config.BATCH_SIZE).type(torch.LongTensor)
 
+        non_final_mask = non_final_mask.bool()
         a_m[non_final_mask] = self.main_q_network(self.non_final_next_states).detach().max(1)[1]
         a_m_non_final_next_states = a_m[non_final_mask].view(-1, 1)
         next_state_values[non_final_mask] = \
@@ -130,6 +131,7 @@ class Brain:
 
         # Mask index
         non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None, batch.next_state)))
+        non_final_mask = non_final_mask.bool()
 
         next_state_values = torch.zeros(self.memory.__len__())
         a_m = torch.zeros(self.memory.__len__()).type(torch.LongTensor)

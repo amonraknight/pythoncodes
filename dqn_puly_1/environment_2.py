@@ -38,8 +38,9 @@ class Environment:
 
                 observation_next, _, done, _ = self.env.step(action.item())
 
-                self.env.render()
-                time.sleep(1 / 30)  # FPS
+                if config.RENDER:
+                    self.env.render()
+                    time.sleep(1 / 30)  # FPS
 
                 # If the stick is down within the step limit, done is True.
                 if done:

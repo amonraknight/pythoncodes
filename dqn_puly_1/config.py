@@ -19,3 +19,5 @@ ACCEPT_THRESHOLD = 10
 
 # Prioritized Sampling:
 TD_ERROR_EPSILON = 0.0001
+
+RENDER = False
