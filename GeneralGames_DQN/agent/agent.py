@@ -12,8 +12,12 @@ class Agent:
     def update_q_function(self):
         self.brain.replay()
 
-    def get_action(self, state, episode):
-        action = self.brain.decide_action(state, episode)
+    def get_action_explore(self, state, episode):
+        action = self.brain.decide_action_explore(state, episode)
+        return action
+
+    def get_action(self, state):
+        action = self.brain.decide_action(state)
         return action
 
     def memorize(self, state, action, state_next, reward):

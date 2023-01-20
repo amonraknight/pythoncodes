@@ -1,5 +1,5 @@
 # DQN parameters
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-5
 GAMMA = 0.99
 CAPACITY = 5000
 BATCH_SIZE = 128
@@ -19,8 +19,8 @@ CARRACING_ACTIONS = [
     [0, 0, 0],      # 0, do nothing
     [0, 1, 0],      # 1, full gas
     [0, 0.5, 0],    # 2, half gas
-    [0, 0, 1],      # 3, full break
-    [0, 0, 0.5],    # 4, half break
+    [0, 0, 0.5],    # 3, forceful break
+    [0, 0, 0.2],    # 4, gentle break
     [-1, 0, 0],     # 5, full left
     [-0.5, 0, 0],   # 6, half left
     [-0.5, 0.5, 0],     # 7, half left/half gas
@@ -40,12 +40,12 @@ DIM_OUT = len(CARRACING_ACTIONS)
 FC_LAYER_1_SIZE = 64
 FC_LAYER_2_SIZE = 64
 
-RENDER_MODE = None
-# RENDER_MODE = 'human'
+# RENDER_MODE = None
+RENDER_MODE = 'human'
 
 # Backup
 OUTPUT_PATH = '..\\outputs\\'
 MODULE_PATH = OUTPUT_PATH + 'module_{}.pt'
 MODULE_LIST_RECORD = OUTPUT_PATH + 'MODULE_LIST'
-BACKUP_INTERVAL = 200
+BACKUP_INTERVAL = 30
 BACKUP_AMOUNT = 5

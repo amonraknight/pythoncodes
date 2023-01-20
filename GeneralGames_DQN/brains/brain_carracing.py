@@ -19,7 +19,7 @@ class CarRacingBrain(CommonBrain):
         self.optimizer = optim.Adam(self.main_q_network.parameters(), lr=config.LEARNING_RATE)
 
     # Return an array of four
-    def decide_action(self, state, episode):
+    def decide_action_explore(self, state, episode):
         epsilon = config.RANDOM_CHANCE * (1 - episode / config.NUM_EPISODES)
         if epsilon <= np.random.uniform(0, 1):
             action = super(CarRacingBrain, self).predict_action(state)
@@ -28,6 +28,11 @@ class CarRacingBrain(CommonBrain):
             if config.DONOTHING_CHANCE <= np.random.uniform(0, 1):
                 action = torch.IntTensor([[0]])
             else:
-                action = torch.IntTensor([[random.randint(0, 10)]])
+                action = torch.IntTensor([[random.randint(1, 10)]])
+        return action
+
+    def decide_action(self, state):
+        action = super(CarRacingBrain, self).predict_action(state)
+        action = action.max(1)[1].view(1, 1)
         return action
 
