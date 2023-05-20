@@ -29,18 +29,44 @@ REGEX_POEM_TITLE = 'title:(.+)?'
 REGEX_POEM_CONTENT = 'content:(.+)?'
 
 # Model
-BATCH_SIZE = 20
+BATCH_SIZE = 8
 EMBEDDING_SIZE = 300
 HIDDEN_SIZE = 100
-OUTPUT_SIZE = 2
+OUTPUT_SIZE = 1
 DROP_OUT = 0.1
+LEAK = 0.2
+
+HIDDEN_SIZE_2 = 1024
+LAYER_SIZE_2 = 3
+TEACHER_FORCING_RATE = 0.6
+
+LAYER_SIZE_D = 1
+# The encoder size and the decoder size must be the same.
+LAYER_SIZE_G = 3
 
 # Model backup
 BACKUP_AMOUNT = 5
 
 # Training
 WINDOW_SIZE = 40
-EPOCH = 5
+EPOCH = 150
 LEARNING_RATE = 0.0001
+CLIP = 1
+GAN_RATE_IDX = 4
+LEARNING_RATE_D = 0.00001
+LEARNING_RATE_G = 0.0003
 
+# Poem Generation:
+LINE_MAX_LENGTH = 15
+
+MANUAL_TEST_LINES = [
+    '大风起兮云飞扬',
+    '春雨惊春清谷天',
+    '路漫漫其修远兮',
+    '春初早被相思染',
+    '不见春风不肯开',
+    '春江花月夜',
+    '爱在西元前',
+    '打个响指吧'
+]
 

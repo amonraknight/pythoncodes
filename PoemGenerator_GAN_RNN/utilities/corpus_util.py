@@ -10,6 +10,7 @@ import numpy as np
 import pathlib
 import re
 import os
+import pandas as pd
 
 import common.config as config
 
@@ -28,6 +29,8 @@ def get_char_vectors():
         char_array = np.load(config.PATH_SIKU_CHARS, allow_pickle=True)
         vectors = np.load(config.PATH_SIKU_VECTORS, allow_pickle=True)
 
+    # char_array is an array or chars
+    # vectors is the corresponding vectors of the chars
     return char_array, vectors
 
 
@@ -114,6 +117,30 @@ def get_poem_corpus(dynasty=None, author=None):
     return poem_array[:, 6]
 
 
+# Use Pandas to get expected corpus
+# dynasties： '唐代|宋代'
+# authors： '李白|林逋',
+# length：40
+def get_poem_corpus_v2(dynasties=None, authors=None, length=None):
+    if not os.path.exists(config.PATH_POEM_NDARRAY):
+        concatenate_poems()
+
+    poem_array = np.load(config.PATH_POEM_NDARRAY, allow_pickle=True)
+    df = pd.DataFrame(data=poem_array,
+                      columns=['dynasty', 'author', 'tags', 'star', 'author_stars', 'title', 'content'])
+
+    if dynasties is not None:
+        df = df[df.dynasty.str.contains(dynasties)]
+        # isin([]) can be another way.
+    if authors is not None:
+        df = df[df.author.str.contains(authors)]
+
+    if length is not None:
+        df = df[df.content.apply(lambda x: len(str(x))) < length]
+
+    return df.content.to_numpy()
+
+
 def get_shijing_corpus():
     array = None
     if not os.path.exists(config.PATH_SHIJING_NDARRAY):
@@ -128,7 +155,8 @@ def get_shijing_corpus():
 
     return array[:, 1]
 
+
 if __name__ == "__main__":
-    # get_poem_corpus(dynasty='唐代', author='李白')
+    #get_poem_corpus_v2('唐代|宋代', '李白|林逋', 40)
     get_char_vectors()
 
