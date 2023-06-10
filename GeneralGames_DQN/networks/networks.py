@@ -58,7 +58,7 @@ class ConvNet4CarRacing(nn.Module):
         self.fc1 = nn.Linear(in_features=256, out_features=256)
         self.fc2 = nn.Linear(in_features=256, out_features=n_out)
         self.Relu = nn.ReLU()
-        self.Sigmoid = nn.Sigmoid()
+        self.Softmax = nn.Softmax()
 
     # inshape (batch,x,y,channel)
     def forward(self, x):
@@ -72,4 +72,5 @@ class ConvNet4CarRacing(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.Relu(self.fc1(x))
         x = self.fc2(x)
+        x = self.Softmax(x)
         return x

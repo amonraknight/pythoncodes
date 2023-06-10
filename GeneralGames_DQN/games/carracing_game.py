@@ -76,7 +76,7 @@ class CarRacing:
 
     def play(self):
         self.agent.read_latest_module()
-        for episode in range(0, 10):
+        for episode in range(0, 30):
             obs = self.env.reset()
             # skip the zooming, do nothing
             for i in range(config.SKIP_FRAMES):
