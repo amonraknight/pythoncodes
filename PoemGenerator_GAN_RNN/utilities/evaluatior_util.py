@@ -9,7 +9,12 @@ def valuate_generator(model, val_x, char_array, val_y):
     output_array = [None, None, None]
     v_output = val_x
     for i in range(0, 3):
-        v_output = model(v_output, None, teacher_forcing_ratio=0, max_gen_length=9)
+
+        # for sequence-2-sequence
+        # v_output = model(v_output, None, max_gen_length=9)
+        # for transformer
+        v_output = model(v_output)
+
         # v_output (batch, sequence_size, char_size) -- > to index in (batch, sequence_size)
         v_output = v_output.argmax(2)
         output_array[i] = v_output.detach().cpu().numpy()

@@ -7,7 +7,7 @@ from tqdm import tqdm
 import itertools
 
 import traindata as tdata
-from networks import RNN1, RNN2, Seq2SeqNet1, RNN3, Seq2SeqNet2
+from networks import RNN1, RNN2, Seq2SeqNet1, RNN3, Seq2SeqNet2, TransformerModel
 import common.config as config
 from common.module_saveload import ModuleSaveLoad
 from utilities.evaluatior_util import valuate_generator, generate_random_poems
@@ -317,7 +317,7 @@ def train_4(is_demo=False):
     context_target_index_list, char_array, vectors = tdata.prepare_train_test_data_2()
     embedding_tensor = torch.from_numpy(vectors).to(device=device)
     # Take 100 for debug
-    # context_target_index_list = context_target_index_list[0:100]
+    # context_target_index_list = context_target_index_list[0:1000]
 
     # discriminator model
     discriminator_model = RNN3(char_array.size,
@@ -331,6 +331,8 @@ def train_4(is_demo=False):
     discriminator_model.to(device=device)
 
     # generator model
+
+    # Decoder-Encoder sequnece-2-sequence model:
     generator_model = Seq2SeqNet2(char_array.size,
                                   config.EMBEDDING_SIZE,
                                   config.HIDDEN_SIZE_2,
@@ -339,6 +341,20 @@ def train_4(is_demo=False):
                                   decoder_layer_size=config.LAYER_SIZE_G,
                                   embedding_tensor=embedding_tensor,
                                   leak=config.LEAK)
+
+    '''
+    # Transformer model:
+    generator_model = TransformerModel(
+        char_array.size,
+        config.EMBEDDING_SIZE,
+        config.HEAD_NUM,
+        config.HIDDEN_SIZE_2,
+        config.LAYER_SIZE_G,
+        config.DROP_OUT,
+        embedding_tensor=embedding_tensor
+    )
+    '''
+
     generator_model.to(device=device)
 
     # loss and optimizer
@@ -379,37 +395,52 @@ def train_4(is_demo=False):
         for e in range(starting_episode + 1, config.EPOCH):
             total_loss_d = 0
             total_loss_g = 0
+            d_count = 0
             g_count = 0
             considered_real = 0
+            total_loss = 0
 
             for i, (real_poem1_idx, real_poem2_idx) in enumerate(tqdm(train_loader)):
                 if real_poem2_idx.shape[0] != config.BATCH_SIZE:
                     break
 
+                optimizer_g.zero_grad()
+
                 # The input is in ()
                 # The output_1 is in (batch_size, , )
+
                 random_input = generate_random_poems(batch_size=config.BATCH_SIZE,
                                                      char_size=char_array.size,
                                                      start_idx=2, end_idx=3, pad_idx=0,
                                                      dvc=device)
-                # generator_model.train()
-                g_output_1 = generator_model(random_input, max_gen_length=9)
-                # It should be of the same shape of real_poem_idx.
-                g_output_1 = g_output_1.argmax(2)
 
+                # Sequence-2-sequence model
+                g_output_1 = generator_model(random_input)
+
+                # transformer model
+                # g_output_1 = generator_model(real_poem1_idx)
                 label_true = torch.ones(config.BATCH_SIZE, dtype=torch.float32, device=device)
+
+                # It should be of the same shape of real_poem_idx.
+                
                 label_false = torch.zeros(config.BATCH_SIZE, dtype=torch.float32, device=device)
 
-                d_input_1 = torch.cat((real_poem2_idx, g_output_1), dim=0)
+                d_input_1 = torch.cat((real_poem2_idx, g_output_1.detach().argmax(2)), dim=0)
                 d_label = torch.cat((label_true, label_false), dim=0)
 
                 # Train discriminator.
-                optimizer_d.zero_grad()
                 output_2 = discriminator_model(d_input_1).squeeze()
                 loss_d = criterion_1(output_2, d_label)
-                total_loss_d += loss_d
-                loss_d.backward()
-                optimizer_d.step()
+
+                wrong_judge_value = (output_2 * torch.cat((label_false, label_true), dim=0)).mean() * 2
+                # Catch up when not able to differentiate.
+                if d_count == 0 or wrong_judge_value.item() > config.D_TRAIN_THRESHOLD:
+                    d_count += 1
+                    optimizer_d.zero_grad()
+                    total_loss_d += loss_d
+                    loss_d.backward()
+                    torch.nn.utils.clip_grad_norm_(discriminator_model.parameters(), config.CLIP)
+                    optimizer_d.step()
 
                 # Train g
                 if np.random.rand() < (e / config.EPOCH) * config.GAN_RATE_IDX:
@@ -420,26 +451,33 @@ def train_4(is_demo=False):
 
                     # valuate_generator(generator_model, g_x, char_array, g_y)
 
-                    optimizer_g.zero_grad()
-                    d_output_2 = discriminator_model(g_output_1).squeeze()
+                    d_output_2 = discriminator_model(g_output_1.argmax(2)).squeeze()
                     # Generator wants them to be judged as real.
                     loss_g = criterion_1(d_output_2, label_true)
+                    total_loss_g += loss_g
 
                     # Count correctness
-                    considered_real += (d_output_2 > 0.5).sum().item()
-
-                    total_loss_g += loss_g
+                    considered_real += d_output_2.mean().item()
+                    optimizer_g.zero_grad()
                     loss_g.backward()
+                    torch.nn.utils.clip_grad_norm_(generator_model.parameters(), config.CLIP)
                     optimizer_g.step()
                 else:
                     # Tain with original poem
-                    optimizer_g.zero_grad()
+
+
+                    # Sequence-2-sequence model
                     g_output_3 = generator_model(real_poem1_idx, real_poem2_idx,
                                                  teacher_forcing_ratio=config.TEACHER_FORCING_RATE)
+                    
+
+                    # Transformer model:
+                    # g_output_3 = g_output_1
                     # output    (batch, sequence, char_size)    --> (batch * sequence, char size)
                     # tar       (batch, sequence, 1)            --> (batch * sequence, 1)
                     g_output_3 = g_output_3.reshape(g_output_3.shape[0] * g_output_3.shape[1], g_output_3.shape[2])
                     tar = real_poem2_idx.reshape(real_poem2_idx.shape[0] * real_poem2_idx.shape[1])
+
                     loss_g = criterion_2(g_output_3, tar)
                     torch.nn.utils.clip_grad_norm_(generator_model.parameters(), config.CLIP)
                     loss_g.backward()
@@ -450,12 +488,12 @@ def train_4(is_demo=False):
             save_loader_g.save_module(generator_model, e)
 
             if g_count == 0:
-                print('Epoch {}: avg_loss_d: {:.4f}'.format(e, total_loss_d / i))
+                print('Epoch {}: avg_loss_d: {:.4f}'.format(e, total_loss_d / d_count))
             else:
                 print('Epoch {}: avg_loss_d: {:.4f}, avg_loss_g: {:.4f}, considered_correct: {:.4f}'.format(e,
-                                                                                                            total_loss_d / i,
+                                                                                                            total_loss_d / d_count,
                                                                                                             total_loss_g / g_count,
-                                                                                                            considered_real / g_count / config.BATCH_SIZE))
+                                                                                                            considered_real / g_count ))
 
             # Generate a sample.
             # generator_model.eval()
@@ -467,4 +505,4 @@ def train_4(is_demo=False):
 
 
 if __name__ == "__main__":
-    train_4(True)
+    train_4(False)

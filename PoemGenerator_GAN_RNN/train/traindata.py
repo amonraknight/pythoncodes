@@ -87,7 +87,7 @@ def prepare_train_test_data_2():
     char_array, vectors = expend_char_vectors(char_array, vectors)
 
     if not os.path.exists(config.PATH_X):
-        poems = corpus_util.get_poem_corpus_v2(dynasties=None, authors=None, length=40)
+        poems = corpus_util.get_poem_corpus_v2(dynasties=None, authors=None, length=100)
         context_target_index_list = []
 
         for each_poem in tqdm(poems):
