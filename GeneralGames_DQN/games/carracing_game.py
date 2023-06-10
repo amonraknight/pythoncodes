@@ -76,6 +76,7 @@ class CarRacing:
 
     def play(self):
         self.agent.read_latest_module()
+        total_score = 0
         for episode in range(0, 30):
             obs = self.env.reset()
             # skip the zooming, do nothing
@@ -90,14 +91,18 @@ class CarRacing:
 
             done = False
             step = 0
-            total_score = 0
+            score = 0
             while not done:
-                action = self.agent.get_action(state)
-                action_no = action.item()
-                observation_next, reward, done, info = self.env.step(config.CARRACING_ACTIONS[action_no])
-                step += 1
-                total_score += reward
+                if config.USE_MERGE_POSSIBILITY:
+                    real_action = self.agent.get_action_merge_possibility(state)
+                else:
+                    action = self.agent.get_action(state)
+                    action_no = action.item()
+                    real_action = config.CARRACING_ACTIONS[action_no]
 
+                observation_next, reward, done, info = self.env.step(real_action)
+                step += 1
+                score += reward
                 observation_next = observation_next.transpose(2, 0, 1)
                 observation_frames = np.concatenate((observation_next, observation_frames[:6, :, :]), axis=0)
 
@@ -111,7 +116,10 @@ class CarRacing:
                 state = state_next
 
                 if done:
-                    print('%d Episode: Finished after %d steps: score %d' % (episode, step+1, total_score))
+                    print('%d Episode: Finished after %d steps: score %d' % (episode, step+1, score))
+                    total_score += score
+
+        print('Avg score: %f' % (total_score/30))
 
 
 if __name__ == "__main__":

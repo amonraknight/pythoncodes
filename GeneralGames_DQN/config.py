@@ -29,6 +29,10 @@ CARRACING_ACTIONS = [
     [0.5, 0.5, 0]   # 10, half right/half gas
 ]
 
+# Getting the action parameter list by taking the softmax results as possibilities to mock continuous action domain.
+# But this is to have a lower score.
+USE_MERGE_POSSIBILITY = False
+
 # Model settings
 # 4 frames * 3 channels
 FRAMES_EACH_OBSERVATION = 3
@@ -40,8 +44,8 @@ DIM_OUT = len(CARRACING_ACTIONS)
 FC_LAYER_1_SIZE = 64
 FC_LAYER_2_SIZE = 64
 
-# RENDER_MODE = None
-RENDER_MODE = 'human'
+RENDER_MODE = None
+# RENDER_MODE = 'human'
 
 
 # Backup

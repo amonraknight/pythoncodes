@@ -20,6 +20,11 @@ class Agent:
         action = self.brain.decide_action(state)
         return action
 
+    # This is a list of the 3 input parameters.
+    def get_action_merge_possibility(self, state):
+        action = self.brain.acquire_merged_action(state)
+        return action
+
     def memorize(self, state, action, state_next, reward):
         self.brain.push(state, action, state_next, reward)
 

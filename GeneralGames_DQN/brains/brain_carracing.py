@@ -36,3 +36,10 @@ class CarRacingBrain(CommonBrain):
         action = action.max(1)[1].view(1, 1)
         return action
 
+    # Get a merged action by taking each action's reward as a possibility.
+    def acquire_merged_action(self, state):
+        action = super(CarRacingBrain, self).predict_action(state)
+        action = action.detach().view(-1).cpu().numpy()
+        action_array = np.matmul(action, np.array(config.CARRACING_ACTIONS))
+        return action_array.tolist()
+
