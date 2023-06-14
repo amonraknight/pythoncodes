@@ -4,6 +4,13 @@ import random
 import math
 
 
+# val: {m, n} ndarray
+def translate_batch_to_char(val, char_array):
+    for each_row in val:
+        print('prediction {}'.format(idx2char(char_array, each_row)))
+
+
+
 def valuate_generator(model, val_x, char_array, val_y):
     # test
     output_array = [None, None, None]
