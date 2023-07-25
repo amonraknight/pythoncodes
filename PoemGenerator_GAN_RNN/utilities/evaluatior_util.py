@@ -10,7 +10,6 @@ def translate_batch_to_char(val, char_array):
         print('prediction {}'.format(idx2char(char_array, each_row)))
 
 
-
 def valuate_generator(model, val_x, char_array, val_y):
     # test
     output_array = [None, None, None]
@@ -39,6 +38,28 @@ def valuate_generator(model, val_x, char_array, val_y):
         print('context line: {}, target {}, prediction {}'.format(src_text, tar_text, predit_text))
 
 
+# The generator model produces embedded outputs in (batch * sequence * embedding dim).
+def valuate_generator2(model, val_x, embedder, char_array):
+    # test
+    output_array = [None, None, None]
+    v_output = val_x
+    for i in range(0, 3):
+
+        # for sequence-2-sequence
+        v_output = model(v_output)
+
+        # v_output (batch, sequence_size, embedding dim) -- > to index in (batch, sequence_size)
+        v_output = embedder.find_closet_vector_idx(v_output)
+        output_array[i] = v_output.detach().cpu().numpy()
+
+    for j in range(val_x.shape[0]):
+        src_text = idx2char(char_array, val_x[j])
+        predit_text = ''
+        for i in range(0, 3):
+            predit_text = predit_text + ' ' + idx2char(char_array, output_array[i][j])
+        print('context line: {}, prediction {}'.format(src_text, predit_text))
+
+
 def idx2char(char_array, idx_list):
     text = []
     for i in idx_list:
@@ -65,6 +86,15 @@ def generate_random_poems(batch_size, char_size, start_idx, end_idx, pad_idx, dv
     return random_integers_tensor.to(dvc)
 
 
+def require_grad(model):
+    for param in model.parameters():
+        param.requires_grad = True
+
+
+def watch_grad(model):
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            print(name, param.grad)
 
 
 if __name__ == "__main__":

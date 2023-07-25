@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import torch.utils.data as tdata
 import os
 import re
@@ -84,6 +85,7 @@ def prepare_train_test_data_2():
 
     # Prepare the vectors and indexes.
     char_array, vectors = corpus_util.get_char_vectors()
+    vectors = np.clip(vectors, -0.9999, 0.9999)
     char_array, vectors = expend_char_vectors(char_array, vectors)
 
     if not os.path.exists(config.PATH_X):
@@ -99,11 +101,12 @@ def prepare_train_test_data_2():
             if len(lines) % 2 == 0:
                 for i in range(0, len(lines) - 1, 2):
                     if (len(lines[i]) == 5 or len(lines[i]) == 7) and len(lines[i]) == len(lines[i+1]):
-
                         upper_context, target_line = convert_line_to_indexes(lines[i], char_array), \
                                                      convert_line_to_indexes(lines[i+1], char_array)
                         each_context_target = [upper_context, target_line]
                         context_target_index_list.append(each_context_target)
+                    else:
+                        break
 
         np.save(config.PATH_X, context_target_index_list)
     else:
@@ -134,9 +137,9 @@ def expend_char_vectors(char_array, vectors):
     char_array = np.insert(char_array, 0, ['P', 'U', 'S', 'E'])
 
     vector_pad = np.zeros(vectors.shape[1])
-    vector_unknown = vector_pad + 1
-    vector_start = vector_pad
-    vector_end = vector_pad
+    vector_unknown = vector_pad + 0.999
+    vector_start = vector_pad - 0.999
+    vector_end = vector_pad + 0.5
 
     vectors = np.insert(vectors, 0, [vector_pad, vector_unknown, vector_start, vector_end], axis=0)
     return char_array, vectors
