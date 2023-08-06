@@ -28,15 +28,23 @@ REGEX_POEM_AUTHOR_STARS = 'author_stars:(.+)?'
 REGEX_POEM_TITLE = 'title:(.+)?'
 REGEX_POEM_CONTENT = 'content:(.+)?'
 
+# char_index
+# 'P', 'U', 'S', 'E'
+IDX_P = 0
+IDX_U = 1
+IDX_S = 2
+IDX_E = 3
+
+
 # Model
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 EMBEDDING_SIZE = 300
 HIDDEN_SIZE = 100
 OUTPUT_SIZE = 1
 DROP_OUT = 0.1
 LEAK = 0.2
 # The number of heads in the transformer.
-HEAD_NUM = 5
+HEAD_NUM = 10
 
 HIDDEN_SIZE_2 = 1024
 LAYER_SIZE_2 = 3
@@ -44,7 +52,7 @@ TEACHER_FORCING_RATE = 0.6
 
 LAYER_SIZE_D = 2
 # The encoder size and the decoder size must be the same.
-LAYER_SIZE_G = 2
+LAYER_SIZE_G = 3
 
 # Model backup
 BACKUP_AMOUNT = 5
@@ -53,8 +61,8 @@ BACKUP_AMOUNT = 5
 IS_DEBUG = False
 WINDOW_SIZE = 40
 EPOCH = 100
-LEARNING_RATE = 0.0001
-CLIP = 5
+LEARNING_RATE = 0.001
+CLIP = 0.5
 GAN_RATE_IDX = 0.98
 LEARNING_RATE_D = 0.00001
 LEARNING_RATE_G = 0.0001

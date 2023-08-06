@@ -4,6 +4,8 @@ import random
 import math
 import torch.nn.functional as F
 
+from torch import Tensor
+
 
 class RNN1(nn.Module):
     def __init__(self, embedding_size, hidden_size, output_size, dropout=0.1):
@@ -407,30 +409,12 @@ class Seq2SeqNet3(nn.Module):
         return outputs
 
 
-# PositionalEncoding add the position info to the inbound.
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
-
-
 class TransformerModel(nn.Module):
     """
         Container module with an encoder, a recurrent or transformer module, and a decoder.
         Original parameters: ntoken, ninp, nhead, nhid, nlayers, dropout=0.5
     """
+
     def __init__(self, char_size, encode_dim, head_num, hidden_size, layer_num, dropout=0.5, embedding_tensor=None):
         super(TransformerModel, self).__init__()
         self.src_mask = None
@@ -442,7 +426,7 @@ class TransformerModel(nn.Module):
             self.encoder = nn.Embedding(char_size, encode_dim)
         else:
             self.encoder = nn.Embedding(num_embeddings=embedding_tensor.shape[0],
-                                          embedding_dim=embedding_tensor.shape[1])
+                                        embedding_dim=embedding_tensor.shape[1])
             self.encoder.weight = torch.nn.Parameter(embedding_tensor)
 
         self.encode_dim = encode_dim
@@ -582,6 +566,7 @@ class Seq2SeqNet4(nn.Module):
 
 class GANLoss(nn.Module):
     """Reward-Refined NLLLoss Function for adversial training of Gnerator"""
+
     def __init__(self, device):
         super(GANLoss, self).__init__()
         self.device = device
@@ -603,19 +588,86 @@ class GANLoss(nn.Module):
         return loss.contiguous()
 
 
+'''
+    Transformer
+    Build a model having encoder, decoder, positional encoding and embedding.
+'''
+
+
+# The learned positional encoding usually has a better result than the static one.
+class LearnedPositionEncoding(nn.Embedding):
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super().__init__(max_len, d_model)
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, x):
+        weight = self.weight.data.unsqueeze(1)
+        x = x + weight[:x.size(0), :]
+        return self.dropout(x)
+
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))  # 10000^(2i/dim)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(-2)
+        self.dropout = nn.Dropout(p=dropout)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
 
 
 
+class TokenEmbedding(nn.Module):
+    def __init__(self, vocab_size: int, emb_size: int):
+        super(TokenEmbedding, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, emb_size)
+        self.emb_size = emb_size
+
+    def forward(self, tokens: Tensor):
+        # embedding 是分布是N(0,1)，乘上math.sqrt(self.emb_size)，增加var
+        # 增加差异？
+        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
+# https://zhuanlan.zhihu.com/p/430893933
+class Transformer3(nn.Module):
+    def __init__(self, num_encoder_layers: int, num_decoder_layers: int, emb_size: int, nhead: int, src_vocab_size,
+                 tgt_vocab_size, dim_feedforward: int = 512, dropout: float = 0.2):
+        super(Transformer3, self).__init__()
+        self.transformer = nn.Transformer(d_model=emb_size, nhead=nhead, num_encoder_layers=num_encoder_layers,
+                                          num_decoder_layers=num_decoder_layers, dim_feedforward=dim_feedforward,
+                                          dropout=dropout)
+        self.generator = nn.Linear(emb_size, tgt_vocab_size)
+        self.src_token_emb = TokenEmbedding(src_vocab_size, emb_size)
+        self.tgt_token_emb = TokenEmbedding(tgt_vocab_size, emb_size)
+        self.positional_encoding = PositionalEncoding(emb_size, dropout=dropout)
 
+    def forward(self, src: Tensor, tgt: Tensor, src_mask: Tensor, tgt_mask: Tensor, src_padding_mask: Tensor,
+                tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
+        src_emb = self.positional_encoding(self.src_token_emb(src))
+        tgt_emb = self.positional_encoding(self.tgt_token_emb(tgt))
 
+        # memory_mask设置为None,不需要mask; memory=encoder(input)
+        # memory_key_padding_mask 和 src_padding_mask 一样，
+        outs = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask, None, src_padding_mask, tgt_padding_mask,
+                                memory_key_padding_mask)
+        return self.generator(outs)
 
+    def encode(self, src: Tensor, src_mask: Tensor):
+        return self.transformer.encoder(self.positional_encoding(self.src_token_emb(src)), src_mask)
 
+    def decode(self, tgt: Tensor, memory: Tensor, tgt_mask: Tensor):
+        return self.transformer.decoder(self.positional_encoding(self.tgt_token_emb(tgt)), memory, tgt_mask)
 
-
-
-
-
-
-
+    def init(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)

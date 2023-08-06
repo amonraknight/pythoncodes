@@ -10,19 +10,32 @@ def translate_batch_to_char(val, char_array):
         print('prediction {}'.format(idx2char(char_array, each_row)))
 
 
-def valuate_generator(model, val_x, char_array, val_y):
+def translate_src_tgt_to_char(src, tgt, char_array):
+    if len(src) != len(tgt):
+        print('Source {} and target {} are not of the same size.'.format(len(src), len(tgt)))
+    else:
+        for row in range(len(src)):
+            print('source {} , prediction {}'.format(idx2char(char_array, src[row]), idx2char(char_array, tgt[row])))
+
+
+
+def valuate_generator(model, val_x, char_array, val_y, batch_first=True):
     # test
     output_array = [None, None, None]
     v_output = val_x
+
     for i in range(0, 3):
 
         # for sequence-2-sequence
         # v_output = model(v_output, None, max_gen_length=9)
         # for transformer
-        v_output = model(v_output)
+        with torch.no_grad():
+            if not batch_first:
+                v_output = v_output.transpose(0, 1)
+            v_output = model(v_output)
 
         # v_output (batch, sequence_size, char_size) -- > to index in (batch, sequence_size)
-        v_output = v_output.argmax(2)
+        v_output = v_output.argmax(-1)
         output_array[i] = v_output.detach().cpu().numpy()
 
     for j in range(val_x.shape[0]):
@@ -36,6 +49,12 @@ def valuate_generator(model, val_x, char_array, val_y):
         for i in range(0, 3):
             predit_text = predit_text + ' ' + idx2char(char_array, output_array[i][j])
         print('context line: {}, target {}, prediction {}'.format(src_text, tar_text, predit_text))
+
+
+def translate_result(output, char_array):
+    output = output.argmax(-1)
+    output_array = output.detach().cpu().numpy()
+    translate_batch_to_char(output_array, char_array)
 
 
 # The generator model produces embedded outputs in (batch * sequence * embedding dim).

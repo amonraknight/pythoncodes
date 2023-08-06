@@ -145,6 +145,33 @@ def expend_char_vectors(char_array, vectors):
     return char_array, vectors
 
 
+def generate_square_subsequent_mask(sz):
+    """防止一次读入全部目标序列，一次多读一个字符 ， 为-inf会被忽略（float tensor视为权重）"""
+    mask = (torch.triu(torch.ones((sz, sz))) == 1).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask
+
+
+def create_mask(src, tgt, device=None):
+    src_seq_len = src.shape[0]
+    tgt_seq_len = tgt.shape[0]
+
+    tgt_mask = generate_square_subsequent_mask(tgt_seq_len)
+    # False：不忽略，True：忽略
+    src_mask = torch.zeros((src_seq_len, src_seq_len)).type(torch.bool)
+
+    # 标记pad字符，为true的是pad，将会被忽略
+    src_padding_mask = (src == 0).transpose(0, 1)
+    tgt_padding_mask = (tgt == 0).transpose(0, 1)
+
+    if device is not None:
+        src_mask = src_mask.to(device=device)
+        tgt_mask = tgt_mask.to(device=device)
+        src_padding_mask = src_padding_mask.to(device=device)
+        tgt_padding_mask = tgt_padding_mask.to(device=device)
+
+    return src_mask, tgt_mask, src_padding_mask, tgt_padding_mask
+
 
 if __name__ == "__main__":
     prepare_train_test_data_2()
