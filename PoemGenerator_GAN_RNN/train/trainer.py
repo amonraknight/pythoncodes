@@ -690,7 +690,7 @@ def train_7(is_demo=False):
     # Prepare train data
     context_target_index_list, char_array, vectors = tdata.prepare_train_test_data_2()
     char_size = char_array.size
-    # embedding_tensor = torch.from_numpy(vectors).to(device=device)
+    embedding_tensor = torch.from_numpy(vectors).to(device=device)
     vectors = None
 
     # Take 100 for debug
@@ -700,7 +700,7 @@ def train_7(is_demo=False):
     # generator model: transformer
     generator_model = Transformer3(config.LAYER_SIZE_G, config.LAYER_SIZE_G, emb_size=config.EMBEDDING_SIZE,
                                    nhead=config.HEAD_NUM, src_vocab_size=char_size, tgt_vocab_size=char_size,
-                                   dim_feedforward=config.EMBEDDING_SIZE)
+                                   dim_feedforward=config.HIDDEN_SIZE_2, embedding_tensor=embedding_tensor)
     generator_model.to(device=device)
     generator_model.init()
 
@@ -794,4 +794,4 @@ def test_translate(generator_model, char_array, device):
 
 
 if __name__ == "__main__":
-    train_7(True)
+    train_7(False)

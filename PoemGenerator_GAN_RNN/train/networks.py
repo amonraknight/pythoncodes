@@ -624,11 +624,17 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size: int, emb_size: int):
+    def __init__(self, vocab_size: int, emb_size: int, embedding_tensor: Tensor = None):
         super(TokenEmbedding, self).__init__()
         self.embedding = nn.Embedding(vocab_size, emb_size)
+        if embedding_tensor is not None:
+            if embedding_tensor.shape[0] != vocab_size or embedding_tensor.shape[1] != emb_size:
+                print('The given char size{} and embedding size{} don\'t match the inbound tensor {} * {}.'.format(
+                    vocab_size, emb_size, embedding_tensor.shape[0], embedding_tensor.shape[1]))
+            else:
+                self.embedding.weight = torch.nn.Parameter(embedding_tensor)
+
         self.emb_size = emb_size
 
     def forward(self, tokens: Tensor):
@@ -640,15 +646,18 @@ class TokenEmbedding(nn.Module):
 # https://zhuanlan.zhihu.com/p/430893933
 class Transformer3(nn.Module):
     def __init__(self, num_encoder_layers: int, num_decoder_layers: int, emb_size: int, nhead: int, src_vocab_size,
-                 tgt_vocab_size, dim_feedforward: int = 512, dropout: float = 0.2):
+                 tgt_vocab_size, dim_feedforward: int = 512, dropout: float = 0.2, embedding_tensor: Tensor = None):
         super(Transformer3, self).__init__()
         self.transformer = nn.Transformer(d_model=emb_size, nhead=nhead, num_encoder_layers=num_encoder_layers,
                                           num_decoder_layers=num_decoder_layers, dim_feedforward=dim_feedforward,
                                           dropout=dropout)
         self.generator = nn.Linear(emb_size, tgt_vocab_size)
-        self.src_token_emb = TokenEmbedding(src_vocab_size, emb_size)
-        self.tgt_token_emb = TokenEmbedding(tgt_vocab_size, emb_size)
-        self.positional_encoding = PositionalEncoding(emb_size, dropout=dropout)
+
+        self.src_token_emb = TokenEmbedding(src_vocab_size, emb_size, embedding_tensor)
+        self.tgt_token_emb = self.src_token_emb
+
+        # self.positional_encoding = PositionalEncoding(emb_size, dropout=dropout)
+        self.positional_encoding = LearnedPositionEncoding(emb_size, dropout=dropout)
 
     def forward(self, src: Tensor, tgt: Tensor, src_mask: Tensor, tgt_mask: Tensor, src_padding_mask: Tensor,
                 tgt_padding_mask: Tensor, memory_key_padding_mask: Tensor):
