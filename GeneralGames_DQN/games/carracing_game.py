@@ -66,7 +66,7 @@ class CarRacing:
                 state = state_next
 
                 if done:
-                    print('%d Episode: Finished after %d steps: score %d' % (episode, step+1, total_score))
+                    print('%d Episode: Finished after %d steps: score %d' % (episode, step + 1, total_score))
                     if episode % config.TARGET_RENEW_RATE == 0:
                         self.agent.update_target_q_function()
                     break
@@ -84,9 +84,11 @@ class CarRacing:
                 # 96*96*3
                 obs, _, _, _ = self.env.step(config.CARRACING_ACTIONS[0])
 
+            # obs --> {3,96,96}
             obs = obs.transpose(2, 0, 1)
             observation_frames = np.repeat(obs, config.FRAMES_EACH_OBSERVATION, axis=0)
             state = torch.from_numpy(observation_frames).type(torch.FloatTensor)
+            # {(3*frames,96,96}
             state = state.unsqueeze(0)
 
             done = False
@@ -104,7 +106,8 @@ class CarRacing:
                 step += 1
                 score += reward
                 observation_next = observation_next.transpose(2, 0, 1)
-                observation_frames = np.concatenate((observation_next, observation_frames[:6, :, :]), axis=0)
+                observation_frames = np.concatenate(
+                    (observation_next, observation_frames[:3 * (config.FRAMES_EACH_OBSERVATION - 1), :, :]), axis=0)
 
                 if done:
                     state_next = None
@@ -116,10 +119,10 @@ class CarRacing:
                 state = state_next
 
                 if done:
-                    print('%d Episode: Finished after %d steps: score %d' % (episode, step+1, score))
+                    print('%d Episode: Finished after %d steps: score %d' % (episode, step + 1, score))
                     total_score += score
 
-        print('Avg score: %f' % (total_score/30))
+        print('Avg score: %f' % (total_score / 30))
 
 
 if __name__ == "__main__":
