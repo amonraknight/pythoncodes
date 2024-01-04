@@ -104,10 +104,14 @@ class Brain:
     def update_target_q_network(self):
         self.target_q_network.load_state_dict(self.main_q_network.state_dict())
 
-    def decide_action(self, state, episode):
+    def decide_action(self, state, episode, is_play=False):
         state = state.to(device=self.device)
 
-        epsilon = config.RANDOM_CHANCE * (1 - episode / config.NUM_EPISODES)
+        if is_play:
+            epsilon = 0
+        else:
+            epsilon = config.RANDOM_CHANCE * (1 - episode / config.NUM_EPISODES)
+
         if epsilon <= np.random.uniform(0, 1):
             self.main_q_network.eval()
             with torch.no_grad():

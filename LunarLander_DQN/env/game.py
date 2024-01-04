@@ -75,7 +75,56 @@ class LunarLander:
             if episode > 0 and episode % config.BACKUP_INTERVAL == 0:
                 self.agent.save_network(episode)
 
+    def play(self):
+        '''
+        Play the game
+        :return: None
+        '''
+        starting_episode = 0
+        # Get the existing module
+        previous_episode = self.agent.read_latest_module()
+        if previous_episode:
+            starting_episode = previous_episode + 1
+
+        for episode in range(starting_episode, config.NUM_EPISODES + 1):
+
+            final_score = 0
+            obs = self.env.reset()
+            state = torch.from_numpy(obs).type(torch.FloatTensor)
+            state = state.unsqueeze(0)
+
+            done = False
+            step_count = 0
+
+            action_count = [0, 0, 0, 0]
+
+            while not done:
+                action = self.agent.get_action(state, episode, True)
+                observation_next, reward, done, info = self.env.step(action.item())
+                action_count[action.item()] = action_count[action.item()] + 1
+
+                final_score += reward
+                step_count += 1
+
+                if done:
+                    state_next = None
+                else:
+                    state_next = torch.from_numpy(observation_next).type(torch.FloatTensor)
+                    state_next = state_next.unsqueeze(0)
+
+                state = state_next
+
+                if done:
+                    print(
+                        '%d Episode: Finished after %d steps: score %d' % (
+                            episode, step_count, final_score))
+                    print(action_count)
+
+                    # update target net
+                    break
+
 
 if __name__ == "__main__":
     game = LunarLander()
-    game.train()
+    # game.train()
+    game.play()
